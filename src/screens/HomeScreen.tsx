@@ -6,6 +6,7 @@ import {
   Easing,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,6 +22,7 @@ import { compareDateKeys, formatShortDate, toDateKey } from '../utils/date';
 
 const successSound = require('../../assets/success.wav');
 const confettiColors = [colors.forest, '#222222', '#FFB199', '#F1F1F1', '#717171'];
+const webMobileWidth = 430;
 
 type Props = {
   checklists: Checklist[];
@@ -31,8 +33,9 @@ type Props = {
 };
 
 export function HomeScreen({ checklists, history, progress, toggleItem, resetChecklist }: Props) {
-  const cardWidth = Math.min(Dimensions.get('window').width - 36, 520);
-  const screenWidth = Dimensions.get('window').width;
+  const viewportWidth = Platform.OS === 'web' ? Math.min(Dimensions.get('window').width, webMobileWidth) : Dimensions.get('window').width;
+  const cardWidth = Math.min(viewportWidth - 36, 520);
+  const screenWidth = viewportWidth;
   const successPlayer = useAudioPlayer(successSound);
   const confettiProgress = useRef(new Animated.Value(0)).current;
   const [isCelebrating, setIsCelebrating] = useState(false);
