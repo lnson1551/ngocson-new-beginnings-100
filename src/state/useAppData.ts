@@ -388,10 +388,12 @@ export function useAppData() {
   };
 
   const toggleHistoryItem = (checklistId: string, date: string, itemId: string) => {
+    const today = toDateKey();
+    if (compareDateKeys(date, today) > 0) return;
+
     const targetChecklist = data.checklists.find((checklist) => checklist.id === checklistId);
     if (!targetChecklist?.items.some((item) => item.id === itemId)) return;
 
-    const today = toDateKey();
     const timestamp = new Date().toISOString();
     const existingRecord = (data.checklistHistory ?? []).find(
       (record) => record.checklistId === checklistId && record.date === date,

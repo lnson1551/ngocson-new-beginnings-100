@@ -79,7 +79,7 @@ function getMonthSections(startDate: string, endDate: string) {
 }
 
 function getHistoryMonthSections(dates: string[]) {
-  return dates.reduce<Array<{ key: string; label: string; dates: string[] }>>((sections, dateKey) => {
+  return dates.reduceRight<Array<{ key: string; label: string; dates: string[] }>>((sections, dateKey) => {
     const date = dateFromKey(dateKey);
     const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
     const current = sections[sections.length - 1];
@@ -140,8 +140,13 @@ export function ChecklistDetailScreen({
   const [selectedDate, setSelectedDate] = useState<string>();
   const [trackingMode, setTrackingMode] = useState<TrackingMode>('daily');
 
+  const today = toDateKey();
   const dateCards = useMemo(() => getDateRange(checklist.startDate, checklist.endDate), [checklist]);
-  const historyMonthSections = useMemo(() => getHistoryMonthSections(dateCards), [dateCards]);
+  const historyDates = useMemo(
+    () => dateCards.filter((dateKey) => compareDateKeys(dateKey, today) <= 0),
+    [dateCards, today],
+  );
+  const historyMonthSections = useMemo(() => getHistoryMonthSections(historyDates), [historyDates]);
   const trackingDates = useMemo(() => getTrackingDates(checklist.startDate, checklist.endDate), [checklist]);
   const monthSections = useMemo(() => getMonthSections(checklist.startDate, checklist.endDate), [checklist]);
   const elapsedDays = getElapsedDays(checklist.startDate, checklist.endDate);
