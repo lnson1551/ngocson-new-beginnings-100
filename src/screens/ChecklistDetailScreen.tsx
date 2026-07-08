@@ -156,6 +156,12 @@ export function ChecklistDetailScreen({
   const selectedCompletedIds = selectedRecord?.completedItemIds ?? [];
   const selectedDoneItems = checklist.items.filter((item) => selectedCompletedIds.includes(item.id));
   const selectedTodoItems = checklist.items.filter((item) => !selectedCompletedIds.includes(item.id));
+  const editableHistoryStartDate = addDays(today, -2);
+  const canEditSelectedDate = Boolean(
+    selectedDate &&
+      compareDateKeys(selectedDate, editableHistoryStartDate) >= 0 &&
+      compareDateKeys(selectedDate, today) <= 0,
+  );
   const shareChallenge = () => {
     void Share.share({
       message: `${checklist.title}\n${formatShortDate(checklist.startDate)} - ${formatShortDate(checklist.endDate)} · ${checklist.durationDays} ngày`,
@@ -297,6 +303,9 @@ export function ChecklistDetailScreen({
                 </Text>
                 <Text style={styles.modalSummaryText}>việc đã hoàn thành</Text>
               </View>
+              {!canEditSelectedDate ? (
+                <Text style={styles.lockedNotice}>Chỉ có thể chỉnh sửa 3 ngày gần nhất.</Text>
+              ) : null}
 
               <View style={styles.taskGroup}>
                 <View style={styles.taskGroupHeader}>
@@ -311,8 +320,13 @@ export function ChecklistDetailScreen({
                     key={item.id}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: true }}
-                    onPress={() => selectedDate && onToggleHistoryItem(checklist.id, selectedDate, item.id)}
-                    style={({ pressed }) => [styles.taskRow, pressed && styles.taskRowPressed]}
+                    disabled={!canEditSelectedDate}
+                    onPress={() => selectedDate && canEditSelectedDate && onToggleHistoryItem(checklist.id, selectedDate, item.id)}
+                    style={({ pressed }) => [
+                      styles.taskRow,
+                      !canEditSelectedDate && styles.taskRowDisabled,
+                      pressed && styles.taskRowPressed,
+                    ]}
                   >
                     <View style={[styles.taskDot, styles.taskDotDone]}>
                       <Check size={11} color={colors.surface} strokeWidth={3} />
@@ -332,8 +346,13 @@ export function ChecklistDetailScreen({
                     key={item.id}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: false }}
-                    onPress={() => selectedDate && onToggleHistoryItem(checklist.id, selectedDate, item.id)}
-                    style={({ pressed }) => [styles.taskRow, pressed && styles.taskRowPressed]}
+                    disabled={!canEditSelectedDate}
+                    onPress={() => selectedDate && canEditSelectedDate && onToggleHistoryItem(checklist.id, selectedDate, item.id)}
+                    style={({ pressed }) => [
+                      styles.taskRow,
+                      !canEditSelectedDate && styles.taskRowDisabled,
+                      pressed && styles.taskRowPressed,
+                    ]}
                   >
                     <View style={styles.taskDot} />
                     <Text style={styles.itemLine}>{item.title}</Text>
@@ -404,8 +423,10 @@ const styles = StyleSheet.create({
   taskCount: { color: colors.muted, fontSize: 12, lineHeight: 16, fontFamily: typography.medium },
   taskRow: { minHeight: 48, borderRadius: 14, backgroundColor: colors.softSurface, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 },
   taskRowPressed: { opacity: 0.72 },
+  taskRowDisabled: { opacity: 0.62 },
   taskDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   taskDotDone: { borderColor: colors.forest, backgroundColor: colors.forest },
   itemLine: { flex: 1, color: colors.ink, fontSize: 16, lineHeight: 22, fontFamily: typography.medium },
+  lockedNotice: { color: colors.muted, fontSize: 13, lineHeight: 18, fontFamily: typography.medium, paddingHorizontal: 4 },
   empty: { borderRadius: 14, backgroundColor: colors.softSurface, color: colors.muted, fontSize: 14, lineHeight: 20, fontFamily: typography.medium, paddingHorizontal: 12, paddingVertical: 14 },
 });

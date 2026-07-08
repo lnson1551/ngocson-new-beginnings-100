@@ -436,7 +436,9 @@ export function useAppData() {
 
   const toggleHistoryItem = (checklistId: string, date: string, itemId: string) => {
     const today = toDateKey();
+    const editableStartDate = addDays(today, -2);
     if (compareDateKeys(date, today) > 0) return;
+    if (compareDateKeys(date, editableStartDate) < 0) return;
 
     const targetChecklist = data.checklists.find((checklist) => checklist.id === checklistId);
     if (!targetChecklist?.items.some((item) => item.id === itemId)) return;
