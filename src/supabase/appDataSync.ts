@@ -24,11 +24,15 @@ export async function fetchRemoteAppData(userId: string) {
 export async function upsertRemoteAppData(userId: string, data: AppData) {
   if (!supabase) return { error: new Error('Supabase chưa được cấu hình.') };
 
-  const { error } = await supabase.from(APP_DATA_TABLE).upsert({
-    user_id: userId,
-    data,
-    updated_at: new Date().toISOString(),
-  });
+  const { data: row, error } = await supabase
+    .from(APP_DATA_TABLE)
+    .upsert({
+      user_id: userId,
+      data,
+      updated_at: new Date().toISOString(),
+    })
+    .select('updated_at')
+    .maybeSingle<Pick<RemoteAppDataRow, 'updated_at'>>();
 
-  return { error };
+  return { error, updatedAt: row?.updated_at };
 }

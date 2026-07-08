@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { addUserInteractionListener } from 'expo-widgets';
 import type { EmailOtpType, Session } from '@supabase/supabase-js';
+import { AppState } from 'react-native';
 
 import { AppData, AppSettings, AppTab, Checklist, ChecklistDayRecord, DayRecord } from '../domain/types';
 import { loadAppData, saveAppData } from '../storage/appStorage';
@@ -17,18 +18,18 @@ type SyncMode = 'local' | 'cloud';
 type SyncStatus = 'local' | 'signed_out' | 'syncing' | 'synced' | 'error';
 
 async function syncLocalToCloudOrHydrateLocal(userId: string, localData: AppData) {
-  const { data: remoteData, error: fetchError } = await fetchRemoteAppData(userId);
+  const { data: remoteData, updatedAt, error: fetchError } = await fetchRemoteAppData(userId);
   if (fetchError) return { error: fetchError.message };
 
   if (remoteData) {
     const hydrated = pushDoneItemsToBottom(rolloverIfNeeded(remoteData));
-    return { data: hydrated };
+    return { data: hydrated, updatedAt };
   }
 
-  const { error: uploadError } = await upsertRemoteAppData(userId, localData);
+  const { error: uploadError, updatedAt: uploadedAt } = await upsertRemoteAppData(userId, localData);
   if (uploadError) return { error: uploadError.message };
 
-  return { data: localData, uploadedLocal: true };
+  return { data: localData, updatedAt: uploadedAt, uploadedLocal: true };
 }
 
 function buildDayRecord(data: AppData, date: string): DayRecord {
@@ -174,6 +175,7 @@ export function useAppData() {
   const sessionRef = useRef<Session | null>(null);
   const syncModeRef = useRef<SyncMode>('local');
   const applyingRemoteRef = useRef(false);
+  const remoteUpdatedAtRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     dataRef.current = data;
@@ -186,6 +188,36 @@ export function useAppData() {
   useEffect(() => {
     syncModeRef.current = syncMode;
   }, [syncMode]);
+
+  const applyRemoteData = async (remoteData: AppData, updatedAt?: string) => {
+    if (updatedAt && remoteUpdatedAtRef.current && updatedAt <= remoteUpdatedAtRef.current) return;
+
+    applyingRemoteRef.current = true;
+    const hydrated = pushDoneItemsToBottom(rolloverIfNeeded(remoteData));
+    remoteUpdatedAtRef.current = updatedAt ?? remoteUpdatedAtRef.current;
+    dataRef.current = hydrated;
+    setData(hydrated);
+    await saveAppData(hydrated);
+    await syncWidgetSummary(hydrated);
+    applyingRemoteRef.current = false;
+    setSyncStatus('synced');
+    setSyncError(undefined);
+  };
+
+  const refreshRemoteData = async () => {
+    const activeSession = sessionRef.current;
+    if (!activeSession || syncModeRef.current !== 'cloud') return;
+
+    const { data: remoteData, updatedAt, error } = await fetchRemoteAppData(activeSession.user.id);
+    if (error) {
+      setSyncStatus('error');
+      setSyncError(error.message);
+      return;
+    }
+    if (remoteData) {
+      await applyRemoteData(remoteData, updatedAt);
+    }
+  };
 
   useEffect(() => {
     async function boot() {
@@ -220,13 +252,7 @@ export function useAppData() {
         setSyncStatus('error');
         setSyncError(syncResult.error);
       } else if (syncResult.data) {
-        applyingRemoteRef.current = true;
-        dataRef.current = syncResult.data;
-        setData(syncResult.data);
-        await saveAppData(syncResult.data);
-        await syncWidgetSummary(syncResult.data);
-        applyingRemoteRef.current = false;
-        setSyncStatus('synced');
+        await applyRemoteData(syncResult.data, syncResult.updatedAt);
       }
 
       setIsReady(true);
@@ -264,19 +290,22 @@ export function useAppData() {
           filter: `user_id=eq.${session.user.id}`,
         },
         async (payload) => {
-          const nextData = (payload.new as { data?: AppData } | null)?.data;
-          if (!nextData) return;
-          applyingRemoteRef.current = true;
-          const hydrated = pushDoneItemsToBottom(rolloverIfNeeded(nextData));
-          dataRef.current = hydrated;
-          setData(hydrated);
-          await saveAppData(hydrated);
-          await syncWidgetSummary(hydrated);
-          applyingRemoteRef.current = false;
-          setSyncStatus('synced');
+          const nextRow = payload.new as { data?: AppData; updated_at?: string } | null;
+          if (!nextRow?.data) return;
+          await applyRemoteData(nextRow.data, nextRow.updated_at);
         },
       )
-      .subscribe();
+      .subscribe((status, error) => {
+        if (status === 'SUBSCRIBED') {
+          setSyncStatus('synced');
+          setSyncError(undefined);
+        }
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setSyncStatus('error');
+          setSyncError(error?.message ?? 'Kết nối đồng bộ realtime bị gián đoạn.');
+          void refreshRemoteData();
+        }
+      });
 
     return () => {
       void client.removeChannel(channel);
@@ -284,9 +313,26 @@ export function useAppData() {
   }, [session, syncMode]);
 
   useEffect(() => {
+    if (!isReady || !session || syncMode !== 'cloud') return undefined;
+
+    const interval = setInterval(() => {
+      void refreshRemoteData();
+    }, 5000);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refreshRemoteData();
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [isReady, session, syncMode]);
+
+  useEffect(() => {
     if (!isReady || !session || syncMode !== 'cloud') return;
     setSyncStatus('syncing');
-    upsertRemoteAppData(session.user.id, dataRef.current).then(({ error }) => {
+    upsertRemoteAppData(session.user.id, dataRef.current).then(({ error, updatedAt }) => {
+      remoteUpdatedAtRef.current = updatedAt ?? remoteUpdatedAtRef.current;
       setSyncStatus(error ? 'error' : 'synced');
       setSyncError(error?.message);
     });
@@ -314,7 +360,8 @@ export function useAppData() {
     await syncWidgetSummary(withHistory);
     if (!applyingRemoteRef.current && sessionRef.current && syncModeRef.current === 'cloud') {
       setSyncStatus('syncing');
-      const { error } = await upsertRemoteAppData(sessionRef.current.user.id, withHistory);
+      const { error, updatedAt } = await upsertRemoteAppData(sessionRef.current.user.id, withHistory);
+      remoteUpdatedAtRef.current = updatedAt ?? remoteUpdatedAtRef.current;
       setSyncStatus(error ? 'error' : 'synced');
       setSyncError(error?.message);
     }
@@ -716,12 +763,7 @@ export function useAppData() {
         return { error: syncResult.error };
       }
       if (syncResult.data) {
-        applyingRemoteRef.current = true;
-        dataRef.current = syncResult.data;
-        setData(syncResult.data);
-        await saveAppData(syncResult.data);
-        await syncWidgetSummary(syncResult.data);
-        applyingRemoteRef.current = false;
+        await applyRemoteData(syncResult.data, syncResult.updatedAt);
       }
     }
     setSyncStatus('synced');
@@ -747,6 +789,9 @@ export function useAppData() {
         setSyncStatus('error');
         setSyncError(syncResult.error);
         return { error: syncResult.error };
+      }
+      if (syncResult.data) {
+        await applyRemoteData(syncResult.data, syncResult.updatedAt);
       }
       setSyncStatus('synced');
       setSyncError(undefined);
@@ -784,12 +829,7 @@ export function useAppData() {
         return { error: syncResult.error };
       }
       if (syncResult.data) {
-        applyingRemoteRef.current = true;
-        dataRef.current = syncResult.data;
-        setData(syncResult.data);
-        await saveAppData(syncResult.data);
-        await syncWidgetSummary(syncResult.data);
-        applyingRemoteRef.current = false;
+        await applyRemoteData(syncResult.data, syncResult.updatedAt);
       }
     }
 
@@ -821,7 +861,8 @@ export function useAppData() {
     if (!session) return { error: 'Đăng nhập trước để bật đồng bộ.' };
     setSyncMode('cloud');
     setSyncStatus('syncing');
-    const { error } = await upsertRemoteAppData(session.user.id, dataRef.current);
+    const { error, updatedAt } = await upsertRemoteAppData(session.user.id, dataRef.current);
+    remoteUpdatedAtRef.current = updatedAt ?? remoteUpdatedAtRef.current;
     setSyncStatus(error ? 'error' : 'synced');
     setSyncError(error?.message);
     return { error: error?.message };

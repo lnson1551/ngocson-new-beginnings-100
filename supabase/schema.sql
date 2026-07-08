@@ -5,6 +5,7 @@ create table if not exists public.app_data (
 );
 
 alter table public.app_data enable row level security;
+alter table public.app_data replica identity full;
 
 drop policy if exists "Users can read own app data" on public.app_data;
 create policy "Users can read own app data"
