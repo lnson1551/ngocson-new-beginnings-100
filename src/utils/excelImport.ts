@@ -43,6 +43,38 @@ function dateFromCell(value: unknown) {
   return toDateKey(new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1])));
 }
 
+function inferTitleFromHeading(value: unknown) {
+  const text = cleanCell(value);
+  const normalized = normalize(text);
+  if (!text) return undefined;
+
+  const days = numberFromCell(text);
+  if (days && (normalized.includes('100 days') || normalized.includes('100 ngay'))) {
+    return { title: '100 khởi đầu mới', durationDays: 100 };
+  }
+  if (normalized.includes('daily checklist') && days) {
+    return { title: days === 100 ? '100 khởi đầu mới' : `Thử thách ${days} ngày`, durationDays: days };
+  }
+  if (normalized.includes('thu thach') && days) {
+    return { title: text, durationDays: days };
+  }
+  return undefined;
+}
+
+function splitImportedTask(title: string, description: string) {
+  if (description) return { title, description };
+
+  const parenthetical = title.match(/^(.+?)\s*\((.+)\)\s*$/);
+  if (parenthetical?.[1] && parenthetical[2]) {
+    return {
+      title: parenthetical[1].trim(),
+      description: parenthetical[2].trim(),
+    };
+  }
+
+  return { title };
+}
+
 function isMetaLabel(label: string) {
   return [
     'ten thu thach',
@@ -66,6 +98,13 @@ function parseSheet(sheet: XLSX.WorkSheet, sheetName: string): ImportedChecklist
   let startDate = toDateKey();
 
   nonEmptyRows.slice(0, 8).forEach((row) => {
+    const heading = row.map(cleanCell).find(Boolean);
+    const inferred = inferTitleFromHeading(heading);
+    if (inferred) {
+      title = inferred.title;
+      durationDays = inferred.durationDays;
+    }
+
     const label = normalize(row[0]);
     if (['ten thu thach', 'title', 'thu thach'].includes(label) && cleanCell(row[1])) {
       title = cleanCell(row[1]);
@@ -98,7 +137,7 @@ function parseSheet(sheet: XLSX.WorkSheet, sheetName: string): ImportedChecklist
       return { title, description, firstLabel };
     })
     .filter((item) => item.title && !isMetaLabel(item.firstLabel) && !taskHeaders.includes(item.firstLabel))
-    .map(({ title, description }) => ({ title, ...(description ? { description } : {}) }));
+    .map(({ title, description }) => splitImportedTask(title, description));
 
   if (items.length === 0) return undefined;
 

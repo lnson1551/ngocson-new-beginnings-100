@@ -86,21 +86,58 @@ function normalizeDraftItem(item: DraftItem): DraftItem {
 }
 
 function buildSampleWorkbook() {
+  const sampleItems: Array<[number, string, string]> = [
+    [1, 'Dậy sớm trước 7h', ''],
+    [2, 'Uống 1 ly nước ấm', 'Uống ngay sau khi vừa thức dậy.'],
+    [
+      3,
+      'Đi tiểu tiện, đại tiện',
+      'Sau khi uống nước vài phút. Thứ tự có thể thay đổi: thức dậy > tiểu tiện > uống nước > đại tiện.',
+    ],
+    [4, 'Không bỏ ăn sáng', ''],
+    [5, 'Tự nấu ăn tối', 'Tối thiểu 90% số bữa ăn.'],
+    [
+      6,
+      'Phơi nắng 20-30p/ngày',
+      'Trong khung giờ 8-16h. Không cần liên tục; chỉ phơi khi cảm thấy ấm, dễ chịu, không để bỏng rát.',
+    ],
+    [7, 'Ăn chậm, nhai kĩ', ''],
+    [8, 'Ăn no vừa phải', ''],
+    [9, 'Không uống nước lạnh, đá lạnh', ''],
+    [
+      10,
+      'Không dùng thực phẩm chế biến công nghiệp',
+      'Ví dụ: nước ngọt, nước đóng chai, bánh kẹo, đồ ăn chế biến sẵn.',
+    ],
+    [11, 'Vận động tối thiểu 30 phút/ngày', 'Vận động là tập luyện chủ động.'],
+    [12, 'Tập thở sâu bằng bụng', '5-10 phút mỗi ngày.'],
+    [13, 'Đi chân tiếp đất', '15-20 phút mỗi ngày.'],
+    [14, 'Nghỉ trưa 30-60p', ''],
+    [15, 'Ăn tối trước khi đi ngủ', 'Cách giờ ngủ tối thiểu 3h.'],
+    [16, 'Quan sát phân và nước tiểu', 'Theo dõi mỗi ngày.'],
+    [17, 'Quan sát và lắng nghe cơ thể', 'Thực hiện mỗi ngày.'],
+    [18, 'Đi ngủ trễ nhất là 22h', ''],
+    [19, 'Ngủ đủ giấc', ''],
+  ];
   const rows = [
-    ['Tên thử thách', 'Học tiếng Anh 100 ngày'],
+    ['100 khởi đầu mới'],
+    ['Giữ nhịp sinh hoạt điều độ rất quan trọng.'],
+    [],
+    ['Tên thử thách', '100 khởi đầu mới'],
     ['Thời lượng', 100],
     ['Ngày bắt đầu', toDateKey()],
     [],
-    ['Việc', 'Ghi chú'],
-    ['Học 10 từ vựng mới', 'Từ chủ đề đang học'],
-    ['Ôn lại 20 từ cũ', 'Dùng flashcard'],
-    ['Nghe tiếng Anh 15 phút', 'Podcast hoặc video ngắn'],
-    ['Viết 5 câu tiếng Anh', 'Có thể viết trong sổ tay'],
+    ['STT', 'NỘI DUNG', 'MÔ TẢ'],
+    ...sampleItems,
   ];
   const workbook = XLSX.utils.book_new();
   const worksheet = XLSX.utils.aoa_to_sheet(rows);
-  worksheet['!cols'] = [{ wch: 24 }, { wch: 34 }];
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Mau');
+  worksheet['!cols'] = [{ wch: 8 }, { wch: 42 }, { wch: 72 }];
+  worksheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
+  ];
+  XLSX.utils.book_append_sheet(workbook, worksheet, '100 ngày');
   return workbook;
 }
 
