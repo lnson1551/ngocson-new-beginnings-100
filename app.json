@@ -1,17 +1,20 @@
 {
   "expo": {
-    "name": "new-beginnings-100",
+    "name": "100 Khởi đầu mới",
     "slug": "new-beginnings-100",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#F7F7F7",
     "ios": {
+      "bundleIdentifier": "com.ngocsonle.newbeginnings100",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.ngocsonle.newbeginnings100",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#F7F7F7",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -20,6 +23,34 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-font",
+      "@react-native-community/datetimepicker",
+      "expo-audio",
+      [
+        "expo-widgets",
+        {
+          "groupIdentifier": "group.com.ngocsonle.newbeginnings100",
+          "enableAndroid": true,
+          "widgets": [
+            {
+              "name": "HomeChecklistWidget",
+              "displayName": "Tiến độ hôm nay",
+              "description": "Đánh dấu việc tiếp theo ngay trên màn hình chính.",
+              "contentMarginsDisabled": true,
+              "supportedFamilies": ["systemSmall", "systemMedium"],
+              "android": {
+                "minWidth": 180,
+                "minHeight": 110,
+                "targetCellWidth": 4,
+                "targetCellHeight": 2,
+                "resizeMode": "both"
+              }
+            }
+          ]
+        }
+      ]
+    ]
   }
 }

@@ -1,0 +1,15 @@
+export const colors = {
+  canvas: '#F7F7F7',
+  surface: '#FFFFFF',
+  ink: '#222222',
+  muted: '#717171',
+  line: '#EBEBEB',
+  softLine: '#F1F1F1',
+  softSurface: '#FAFAFA',
+  forest: '#FF6B35',
+  forestSoft: '#F1F1F1',
+  coral: '#FF6B35',
+  sky: '#F7F7F7',
+  gold: '#FF6B35',
+  shadow: '#222222',
+};
