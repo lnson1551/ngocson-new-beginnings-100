@@ -387,6 +387,67 @@ export function useAppData() {
     void persist(withChecklistDayRecord(nextData, checklistId));
   };
 
+  const toggleHistoryItem = (checklistId: string, date: string, itemId: string) => {
+    const targetChecklist = data.checklists.find((checklist) => checklist.id === checklistId);
+    if (!targetChecklist?.items.some((item) => item.id === itemId)) return;
+
+    const today = toDateKey();
+    const timestamp = new Date().toISOString();
+    const existingRecord = (data.checklistHistory ?? []).find(
+      (record) => record.checklistId === checklistId && record.date === date,
+    );
+    const completedIds = new Set(
+      existingRecord?.completedItemIds ?? (date === today ? targetChecklist.items.filter((item) => item.isDone).map((item) => item.id) : []),
+    );
+
+    if (completedIds.has(itemId)) {
+      completedIds.delete(itemId);
+    } else {
+      completedIds.add(itemId);
+    }
+
+    const completedItemIds = targetChecklist.items
+      .filter((item) => completedIds.has(item.id))
+      .map((item) => item.id);
+    const nextRecord: ChecklistDayRecord = {
+      checklistId,
+      date,
+      completedItemIds,
+      total: targetChecklist.items.length,
+      updatedAt: timestamp,
+    };
+
+    const nextData: AppData = {
+      ...data,
+      checklists:
+        date === today
+          ? data.checklists.map((checklist) => {
+              if (checklist.id !== checklistId) return checklist;
+
+              return {
+                ...checklist,
+                updatedAt: timestamp,
+                items: checklist.items
+                  .map((item, index) => ({
+                    item: { ...item, isDone: completedIds.has(item.id) },
+                    index,
+                  }))
+                  .sort((a, b) => Number(a.item.isDone) - Number(b.item.isDone) || a.index - b.index)
+                  .map(({ item }) => item),
+              };
+            })
+          : data.checklists,
+      checklistHistory: [
+        nextRecord,
+        ...(data.checklistHistory ?? []).filter(
+          (record) => record.checklistId !== checklistId || record.date !== date,
+        ),
+      ],
+    };
+
+    void persist(nextData);
+  };
+
   const createChecklist = (
     title: string,
     items: Array<{ title: string; description?: string; reminderTime?: string }>,
@@ -791,6 +852,7 @@ export function useAppData() {
     setSelectedChecklistId,
     progress,
     toggleItem,
+    toggleHistoryItem,
     createChecklist,
     importChecklists,
     updateChecklist,

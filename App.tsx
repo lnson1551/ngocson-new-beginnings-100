@@ -76,6 +76,7 @@ export default function App() {
                 history={app.checklistHistory}
                 onBack={() => app.setSelectedChecklistId(undefined)}
                 onEdit={() => app.setActiveTab('edit')}
+                onToggleHistoryItem={app.toggleHistoryItem}
               />
             ) : (
               <ChecklistsScreen

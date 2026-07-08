@@ -12,6 +12,7 @@ type Props = {
   history: ChecklistDayRecord[];
   onBack: () => void;
   onEdit: () => void;
+  onToggleHistoryItem: (checklistId: string, date: string, itemId: string) => void;
 };
 
 type TrackingMode = 'daily' | 'weekly';
@@ -134,6 +135,7 @@ export function ChecklistDetailScreen({
   history,
   onBack,
   onEdit,
+  onToggleHistoryItem,
 }: Props) {
   const [selectedDate, setSelectedDate] = useState<string>();
   const [trackingMode, setTrackingMode] = useState<TrackingMode>('daily');
@@ -300,12 +302,18 @@ export function ChecklistDetailScreen({
                   <Text style={styles.empty}>Chưa có việc hoàn thành.</Text>
                 ) : null}
                 {selectedDoneItems.map((item) => (
-                  <View key={item.id} style={styles.taskRow}>
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: true }}
+                    onPress={() => selectedDate && onToggleHistoryItem(checklist.id, selectedDate, item.id)}
+                    style={({ pressed }) => [styles.taskRow, pressed && styles.taskRowPressed]}
+                  >
                     <View style={[styles.taskDot, styles.taskDotDone]}>
                       <Check size={11} color={colors.surface} strokeWidth={3} />
                     </View>
                     <Text style={styles.itemLine}>{item.title}</Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
 
@@ -315,10 +323,16 @@ export function ChecklistDetailScreen({
                   <Text style={styles.taskCount}>{selectedTodoItems.length}</Text>
                 </View>
                 {selectedTodoItems.map((item) => (
-                  <View key={item.id} style={styles.taskRow}>
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: false }}
+                    onPress={() => selectedDate && onToggleHistoryItem(checklist.id, selectedDate, item.id)}
+                    style={({ pressed }) => [styles.taskRow, pressed && styles.taskRowPressed]}
+                  >
                     <View style={styles.taskDot} />
                     <Text style={styles.itemLine}>{item.title}</Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
             </ScrollView>
@@ -384,6 +398,7 @@ const styles = StyleSheet.create({
   subTitle: { color: colors.muted, fontSize: 13, lineHeight: 18, fontFamily: typography.semiBold },
   taskCount: { color: colors.muted, fontSize: 12, lineHeight: 16, fontFamily: typography.medium },
   taskRow: { minHeight: 48, borderRadius: 14, backgroundColor: colors.softSurface, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  taskRowPressed: { opacity: 0.72 },
   taskDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   taskDotDone: { borderColor: colors.forest, backgroundColor: colors.forest },
   itemLine: { flex: 1, color: colors.ink, fontSize: 16, lineHeight: 22, fontFamily: typography.medium },
