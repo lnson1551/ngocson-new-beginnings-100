@@ -77,6 +77,8 @@ export default function App() {
                 onBack={() => app.setSelectedChecklistId(undefined)}
                 onEdit={() => app.setActiveTab('edit')}
                 onToggleHistoryItem={app.toggleHistoryItem}
+                onUpdateSchedule={app.updateChecklistSchedule}
+                onDelete={app.deleteChecklist}
               />
             ) : (
               <ChecklistsScreen

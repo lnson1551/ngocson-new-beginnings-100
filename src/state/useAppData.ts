@@ -689,6 +689,10 @@ export function useAppData() {
   const updateChecklistSchedule = (checklistId: string, startDate: string, durationDays: number) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || durationDays < 1 || durationDays > 365) return;
 
+    const endDate = addDays(startDate, durationDays - 1);
+    const today = toDateKey();
+    const includesToday = compareDateKeys(startDate, today) <= 0 && compareDateKeys(today, endDate) <= 0;
+
     const nextData: AppData = {
       ...data,
       checklists: data.checklists.map((checklist) =>
@@ -697,14 +701,28 @@ export function useAppData() {
               ...checklist,
               startDate,
               durationDays,
-              endDate: addDays(startDate, durationDays - 1),
+              endDate,
               updatedAt: new Date().toISOString(),
+              items: checklist.items.map((item) => ({
+                ...item,
+                isDone: includesToday ? item.isDone : false,
+              })),
             }
           : checklist,
       ),
+      checklistHistory: (data.checklistHistory ?? [])
+        .filter((record) => record.checklistId !== checklistId || (compareDateKeys(record.date, startDate) >= 0 && compareDateKeys(record.date, endDate) <= 0))
+        .map((record) =>
+          record.checklistId === checklistId
+            ? {
+                ...record,
+                total: data.checklists.find((checklist) => checklist.id === checklistId)?.items.length ?? record.total,
+              }
+            : record,
+        ),
     };
 
-    void persist(nextData);
+    void persist(includesToday ? withChecklistDayRecord(nextData, checklistId) : nextData);
   };
 
   const resetToday = () => {

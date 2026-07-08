@@ -1,6 +1,6 @@
-import { Check, ChevronLeft, Pencil, Share2, X } from 'lucide-react-native';
+import { CalendarClock, Check, ChevronLeft, MoreHorizontal, Pencil, Share2, Trash2, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Checklist, ChecklistDayRecord } from '../domain/types';
 import { colors } from '../theme/colors';
@@ -13,6 +13,8 @@ type Props = {
   onBack: () => void;
   onEdit: () => void;
   onToggleHistoryItem: (checklistId: string, date: string, itemId: string) => void;
+  onUpdateSchedule: (checklistId: string, startDate: string, durationDays: number) => void;
+  onDelete: (checklistId: string) => void;
 };
 
 type TrackingMode = 'daily' | 'weekly';
@@ -136,9 +138,16 @@ export function ChecklistDetailScreen({
   onBack,
   onEdit,
   onToggleHistoryItem,
+  onUpdateSchedule,
+  onDelete,
 }: Props) {
   const [selectedDate, setSelectedDate] = useState<string>();
   const [trackingMode, setTrackingMode] = useState<TrackingMode>('daily');
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [draftStartDate, setDraftStartDate] = useState(checklist.startDate);
+  const [draftDurationDays, setDraftDurationDays] = useState(String(checklist.durationDays));
 
   const today = toDateKey();
   const dateCards = useMemo(() => getDateRange(checklist.startDate, checklist.endDate), [checklist]);
@@ -147,8 +156,21 @@ export function ChecklistDetailScreen({
     [dateCards, today],
   );
   const historyMonthSections = useMemo(() => getHistoryMonthSections(historyDates), [historyDates]);
-  const trackingDates = useMemo(() => getTrackingDates(checklist.startDate, checklist.endDate), [checklist]);
-  const monthSections = useMemo(() => getMonthSections(checklist.startDate, checklist.endDate), [checklist]);
+  const visibleTrackingEndDate = compareDateKeys(today, checklist.endDate) > 0 ? checklist.endDate : today;
+  const trackingDates = useMemo(
+    () =>
+      compareDateKeys(visibleTrackingEndDate, checklist.startDate) < 0
+        ? []
+        : getTrackingDates(checklist.startDate, visibleTrackingEndDate),
+    [checklist.startDate, visibleTrackingEndDate],
+  );
+  const monthSections = useMemo(
+    () =>
+      compareDateKeys(visibleTrackingEndDate, checklist.startDate) < 0
+        ? []
+        : getMonthSections(checklist.startDate, visibleTrackingEndDate),
+    [checklist.startDate, visibleTrackingEndDate],
+  );
   const elapsedDays = getElapsedDays(checklist.startDate, checklist.endDate);
   const selectedRecord = selectedDate
     ? history.find((record) => record.checklistId === checklist.id && record.date === selectedDate)
@@ -166,6 +188,26 @@ export function ChecklistDetailScreen({
     void Share.share({
       message: `${checklist.title}\n${formatShortDate(checklist.startDate)} - ${formatShortDate(checklist.endDate)} · ${checklist.durationDays} ngày`,
     });
+  };
+  const openScheduleModal = () => {
+    setDraftStartDate(checklist.startDate);
+    setDraftDurationDays(String(checklist.durationDays));
+    setIsMoreOpen(false);
+    setIsScheduleOpen(true);
+  };
+  const saveSchedule = () => {
+    const nextDuration = Number.parseInt(draftDurationDays.trim(), 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(draftStartDate.trim()) || !Number.isFinite(nextDuration) || nextDuration < 1 || nextDuration > 365) {
+      return;
+    }
+
+    onUpdateSchedule(checklist.id, draftStartDate.trim(), nextDuration);
+    setIsScheduleOpen(false);
+  };
+  const deleteChecklist = () => {
+    setIsDeleteConfirmOpen(false);
+    setIsMoreOpen(false);
+    onDelete(checklist.id);
   };
 
   return (
@@ -186,10 +228,15 @@ export function ChecklistDetailScreen({
           <Text style={styles.meta}>
             {formatShortDate(checklist.startDate)} - {formatShortDate(checklist.endDate)} · {checklist.durationDays} ngày
           </Text>
-          <Pressable accessibilityRole="button" onPress={onEdit} style={styles.editButton}>
-            <Pencil size={15} color={colors.surface} strokeWidth={2.4} />
-            <Text style={styles.editText}>Chỉnh sửa</Text>
-          </Pressable>
+          <View style={styles.heroActions}>
+            <Pressable accessibilityRole="button" onPress={onEdit} style={styles.editButton}>
+              <Pencil size={15} color={colors.surface} strokeWidth={2.4} />
+              <Text style={styles.editText}>Chỉnh sửa</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Mở tuỳ chọn" onPress={() => setIsMoreOpen(true)} style={styles.moreButton}>
+              <MoreHorizontal size={22} color={colors.ink} strokeWidth={2.4} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.trackingCard}>
@@ -363,6 +410,111 @@ export function ChecklistDetailScreen({
           </View>
         </View>
       </Modal>
+
+      <Modal visible={isMoreOpen} transparent animationType="fade" onRequestClose={() => setIsMoreOpen(false)}>
+        <View style={styles.actionBackdrop}>
+          <View style={styles.actionSheet}>
+            <View style={styles.actionHeader}>
+              <Text style={styles.actionTitle}>Tuỳ chọn</Text>
+              <Pressable accessibilityRole="button" onPress={() => setIsMoreOpen(false)} style={styles.actionClose}>
+                <X size={20} color={colors.ink} strokeWidth={2.4} />
+              </Pressable>
+            </View>
+            <Pressable accessibilityRole="button" onPress={openScheduleModal} style={styles.actionRow}>
+              <View style={styles.actionIcon}>
+                <CalendarClock size={20} color={colors.ink} strokeWidth={2.3} />
+              </View>
+              <View style={styles.actionCopy}>
+                <Text style={styles.actionRowTitle}>Thay đổi thời gian</Text>
+                <Text style={styles.actionRowText}>Đổi ngày bắt đầu hoặc thời lượng.</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setIsMoreOpen(false);
+                setIsDeleteConfirmOpen(true);
+              }}
+              style={styles.actionRow}
+            >
+              <View style={styles.actionIcon}>
+                <Trash2 size={20} color={colors.ink} strokeWidth={2.3} />
+              </View>
+              <View style={styles.actionCopy}>
+                <Text style={styles.actionRowTitle}>Xoá thử thách</Text>
+                <Text style={styles.actionRowText}>Xoá thử thách và lịch sử liên quan.</Text>
+              </View>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={isScheduleOpen} transparent animationType="slide" onRequestClose={() => setIsScheduleOpen(false)}>
+        <View style={styles.actionBackdrop}>
+          <View style={styles.scheduleCard}>
+            <View style={styles.actionHeader}>
+              <Text style={styles.actionTitle}>Thay đổi thời gian</Text>
+              <Pressable accessibilityRole="button" onPress={() => setIsScheduleOpen(false)} style={styles.actionClose}>
+                <X size={20} color={colors.ink} strokeWidth={2.4} />
+              </Pressable>
+            </View>
+            <View style={styles.scheduleForm}>
+              <View style={styles.scheduleField}>
+                <Text style={styles.scheduleLabel}>Ngày bắt đầu</Text>
+                <TextInput
+                  value={draftStartDate}
+                  onChangeText={setDraftStartDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.muted}
+                  style={styles.scheduleInput}
+                />
+              </View>
+              <View style={styles.scheduleField}>
+                <Text style={styles.scheduleLabel}>Thời lượng</Text>
+                <TextInput
+                  value={draftDurationDays}
+                  onChangeText={setDraftDurationDays}
+                  placeholder="100"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="number-pad"
+                  style={styles.scheduleInput}
+                />
+              </View>
+              <Text style={styles.scheduleHint}>
+                Nếu mốc mới ở tương lai, thử thách sẽ chuyển sang sắp tới. Lịch sử ngoài mốc mới sẽ không được giữ.
+              </Text>
+            </View>
+            <View style={styles.sheetActions}>
+              <Pressable accessibilityRole="button" onPress={() => setIsScheduleOpen(false)} style={[styles.sheetButton, styles.sheetCancelButton]}>
+                <Text style={styles.sheetCancelText}>Huỷ</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={saveSchedule} style={[styles.sheetButton, styles.sheetPrimaryButton]}>
+                <Text style={styles.sheetPrimaryText}>Lưu</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={isDeleteConfirmOpen} transparent animationType="fade" onRequestClose={() => setIsDeleteConfirmOpen(false)}>
+        <View style={styles.actionBackdrop}>
+          <View style={styles.confirmCard}>
+            <View style={styles.confirmIcon}>
+              <Trash2 size={26} color={colors.forest} strokeWidth={2.4} />
+            </View>
+            <Text style={styles.confirmTitle}>Xoá thử thách?</Text>
+            <Text style={styles.confirmText}>Thao tác này sẽ xoá thử thách và toàn bộ lịch sử của nó.</Text>
+            <View style={styles.sheetActions}>
+              <Pressable accessibilityRole="button" onPress={() => setIsDeleteConfirmOpen(false)} style={[styles.sheetButton, styles.sheetCancelButton]}>
+                <Text style={styles.sheetCancelText}>Huỷ</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={deleteChecklist} style={[styles.sheetButton, styles.sheetPrimaryButton]}>
+                <Text style={styles.sheetPrimaryText}>Xoá</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -375,8 +527,10 @@ const styles = StyleSheet.create({
   heroCard: { borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, padding: 18, gap: 6 },
   title: { color: colors.ink, fontSize: 24, lineHeight: 30, fontFamily: typography.semiBold },
   meta: { color: colors.muted, fontSize: 12, lineHeight: 17, fontFamily: typography.regular },
-  editButton: { minHeight: 42, alignSelf: 'flex-start', borderRadius: 999, marginTop: 10, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.forest },
+  heroActions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  editButton: { minHeight: 42, alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.forest },
   editText: { color: colors.surface, fontSize: 13, fontFamily: typography.semiBold },
+  moreButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.softSurface, borderWidth: 1, borderColor: colors.line },
   trackingCard: { borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, padding: 16, gap: 12 },
   trackingTabs: { alignSelf: 'center', minHeight: 42, borderRadius: 999, padding: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: colors.softSurface, borderWidth: 1, borderColor: colors.line },
   trackingTabButton: { minHeight: 34, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
@@ -429,4 +583,30 @@ const styles = StyleSheet.create({
   itemLine: { flex: 1, color: colors.ink, fontSize: 16, lineHeight: 22, fontFamily: typography.medium },
   lockedNotice: { color: colors.muted, fontSize: 13, lineHeight: 18, fontFamily: typography.medium, paddingHorizontal: 4 },
   empty: { borderRadius: 14, backgroundColor: colors.softSurface, color: colors.muted, fontSize: 14, lineHeight: 20, fontFamily: typography.medium, paddingHorizontal: 12, paddingVertical: 14 },
+  actionBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.28)' },
+  actionSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: colors.surface, padding: 18, gap: 10 },
+  actionHeader: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  actionTitle: { color: colors.ink, fontSize: 22, lineHeight: 28, fontFamily: typography.semiBold },
+  actionClose: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.softSurface },
+  actionRow: { minHeight: 74, borderRadius: 18, backgroundColor: colors.softSurface, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
+  actionIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  actionCopy: { flex: 1 },
+  actionRowTitle: { color: colors.ink, fontSize: 16, lineHeight: 22, fontFamily: typography.semiBold },
+  actionRowText: { color: colors.muted, fontSize: 13, lineHeight: 18, fontFamily: typography.medium, marginTop: 2 },
+  scheduleCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: colors.surface, padding: 18, gap: 16 },
+  scheduleForm: { gap: 12 },
+  scheduleField: { gap: 7 },
+  scheduleLabel: { color: colors.ink, fontSize: 13, lineHeight: 18, fontFamily: typography.semiBold },
+  scheduleInput: { minHeight: 52, borderRadius: 999, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.softSurface, paddingHorizontal: 16, color: colors.ink, fontSize: 16, fontFamily: typography.medium },
+  scheduleHint: { color: colors.muted, fontSize: 13, lineHeight: 18, fontFamily: typography.medium },
+  sheetActions: { flexDirection: 'row', gap: 10 },
+  sheetButton: { flex: 1, minHeight: 48, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  sheetCancelButton: { backgroundColor: colors.softSurface },
+  sheetPrimaryButton: { backgroundColor: colors.ink },
+  sheetCancelText: { color: colors.muted, fontSize: 15, fontFamily: typography.semiBold },
+  sheetPrimaryText: { color: colors.surface, fontSize: 15, fontFamily: typography.semiBold },
+  confirmCard: { margin: 18, borderRadius: 28, backgroundColor: colors.surface, padding: 24, alignItems: 'center', gap: 10 },
+  confirmIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.softSurface, borderWidth: 1, borderColor: colors.line },
+  confirmTitle: { color: colors.ink, fontSize: 24, lineHeight: 30, fontFamily: typography.semiBold, textAlign: 'center' },
+  confirmText: { color: colors.muted, fontSize: 15, lineHeight: 21, fontFamily: typography.medium, textAlign: 'center', marginBottom: 10 },
 });
