@@ -36,8 +36,6 @@ type Props = {
   onVerifyOtp: (email: string, token: string, type: OtpType) => Promise<{ error?: string }>;
   onUpdatePassword: (password: string) => Promise<{ error?: string }>;
   onSignOut: () => Promise<void>;
-  onUseLocalOnly: () => void;
-  onEnableCloudSync: () => Promise<{ error?: string }>;
   onAccountPageChange?: (isAccountPage: boolean) => void;
 };
 
@@ -95,8 +93,6 @@ export function SettingsScreen({
   onVerifyOtp,
   onUpdatePassword,
   onSignOut,
-  onUseLocalOnly,
-  onEnableCloudSync,
   onAccountPageChange,
 }: Props) {
   const [isWidgetGuideOpen, setIsWidgetGuideOpen] = useState(false);
@@ -286,11 +282,6 @@ export function SettingsScreen({
     setAccountPage('account');
   };
 
-  const enableCloud = async () => {
-    const result = await onEnableCloudSync();
-    if (result.error) Alert.alert('Chưa bật được đồng bộ', result.error);
-  };
-
   const submitSignOut = async () => {
     await onSignOut();
     setPassword('');
@@ -335,31 +326,8 @@ export function SettingsScreen({
                 </View>
                 <Text style={styles.authTitle}>{authSession ? authSession.user.email : 'Chưa đăng nhập'}</Text>
                 <Text style={styles.authDescription}>
-                  Dữ liệu luôn có thể dùng trên thiết bị này. Khi bật đồng bộ, tiến độ và cài đặt sẽ được sao lưu vào tài khoản của bạn.
+                  Tiến độ và cài đặt của bạn được tự động sao lưu vào tài khoản này.
                 </Text>
-              </View>
-
-              <View style={styles.syncChoiceRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={onUseLocalOnly}
-                  style={[styles.syncChoice, syncMode === 'local' && styles.syncChoiceActive]}
-                >
-                  <Text style={[styles.syncChoiceTitle, syncMode === 'local' && styles.syncChoiceTitleActive]}>
-                    Local
-                  </Text>
-                  <Text style={styles.syncChoiceText}>Chỉ trên máy này</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={enableCloud}
-                  style={[styles.syncChoice, syncMode === 'cloud' && styles.syncChoiceActive]}
-                >
-                  <Text style={[styles.syncChoiceTitle, syncMode === 'cloud' && styles.syncChoiceTitleActive]}>
-                    Tài khoản
-                  </Text>
-                  <Text style={styles.syncChoiceText}>Sao lưu & đồng bộ</Text>
-                </Pressable>
               </View>
 
               <View style={styles.statusPill}>
@@ -371,7 +339,7 @@ export function SettingsScreen({
                       : syncStatus === 'error'
                         ? syncError ?? 'Lỗi đồng bộ'
                         : authSession
-                          ? 'Đang lưu trên thiết bị'
+                          ? 'Đã đăng nhập'
                           : 'Chưa đăng nhập'}
                 </Text>
               </View>
@@ -961,36 +929,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.semiBold,
     paddingVertical: 6,
     paddingHorizontal: 10,
-  },
-  syncChoiceRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  syncChoice: {
-    flex: 1,
-    minHeight: 74,
-    borderRadius: 18,
-    backgroundColor: colors.softSurface,
-    padding: 12,
-    justifyContent: 'center',
-    gap: 4,
-  },
-  syncChoiceActive: {
-    backgroundColor: colors.ink,
-  },
-  syncChoiceTitle: {
-    color: colors.ink,
-    fontSize: 15,
-    fontFamily: typography.semiBold,
-  },
-  syncChoiceTitleActive: {
-    color: colors.surface,
-  },
-  syncChoiceText: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-    fontFamily: typography.medium,
   },
   statusPill: {
     minHeight: 34,

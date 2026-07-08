@@ -67,8 +67,6 @@ export default function App() {
               onVerifyOtp={app.verifyOtp}
               onUpdatePassword={app.updatePassword}
               onSignOut={app.signOut}
-              onUseLocalOnly={app.useLocalOnly}
-              onEnableCloudSync={app.enableCloudSync}
               onAccountPageChange={setIsSettingsAccountPage}
             />
           ) : app.selectedChecklist ? (
