@@ -20,7 +20,7 @@ import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 
 type AccountPage = 'settings' | 'account' | 'signIn' | 'signUp' | 'forgotPassword' | 'otp' | 'resetPassword';
-type OtpType = 'email' | 'recovery';
+type OtpType = 'email' | 'signup' | 'recovery';
 
 type Props = {
   settings: AppSettings;
@@ -204,7 +204,7 @@ export function SettingsScreen({
     setPassword('');
     setConfirmPassword('');
     if (result.message) {
-      setOtpType('email');
+      setOtpType('signup');
       setAuthNotice(result.message);
       setAccountPage('otp');
       return;
@@ -411,7 +411,9 @@ export function SettingsScreen({
                       : accountPage === 'otp'
                         ? otpType === 'recovery'
                           ? 'Nhập OTP khôi phục'
-                          : 'Nhập mã xác nhận email'
+                          : otpType === 'signup'
+                            ? 'Nhập OTP đăng ký'
+                            : 'Nhập OTP đăng nhập'
                         : accountPage === 'resetPassword'
                           ? 'Đặt mật khẩu mới'
                         : 'Đăng nhập để đồng bộ'}

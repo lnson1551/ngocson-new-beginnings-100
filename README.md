@@ -37,6 +37,23 @@ supabase/schema.sql
 
 File nay tao bang `public.app_data`, bat RLS, them policy cho moi user chi doc/ghi data cua minh, va bat realtime cho bang dong bo. Neu REST bao `Could not find the table 'public.app_data'`, nghia la SQL nay chua duoc chay tren project.
 
+### Email OTP
+
+App dang dung:
+
+- Dang nhap: email + mat khau.
+- Dang ky: email + mat khau, sau do xac nhan OTP neu Supabase yeu cau confirm email.
+- Quen mat khau: gui email khoi phuc, nhap OTP, roi dat mat khau moi.
+
+De email hien ma OTP thay vi link, vao Supabase Dashboard > Authentication > Email Templates va thay template:
+
+- Confirm signup: copy `supabase/email-templates/confirm-signup-otp.html`
+- Reset password: copy `supabase/email-templates/reset-password-otp.html`
+
+Quan trong: template phai co bien `{{ .Token }}` de Supabase gui ma 6 so. Neu chi dung `{{ .ConfirmationURL }}`, email se la link thay vi OTP.
+
+Supabase default email sender co the dung mien phi de test, nhung bi rate-limit thap va best-effort. Khi public that, nen cau hinh Custom SMTP bang dich vu co free tier nhu Resend hoac Brevo trong Supabase Dashboard > Authentication > SMTP Settings.
+
 ## Cau truc code
 
 ```text
