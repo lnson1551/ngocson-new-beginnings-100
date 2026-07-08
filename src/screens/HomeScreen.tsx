@@ -40,9 +40,11 @@ export function HomeScreen({ checklists, history, progress, toggleItem, resetChe
   const confettiProgress = useRef(new Animated.Value(0)).current;
   const [isCelebrating, setIsCelebrating] = useState(false);
   const [celebrationTitle, setCelebrationTitle] = useState('');
+  const [pendingResetChecklistId, setPendingResetChecklistId] = useState<string>();
   const activeChecklists = checklists.filter((checklist) => compareDateKeys(checklist.startDate, toDateKey()) <= 0);
   const [activeChecklistIndex, setActiveChecklistIndex] = useState(0);
   const activeChecklist = activeChecklists[activeChecklistIndex] ?? activeChecklists[0];
+  const pendingResetChecklist = checklists.find((checklist) => checklist.id === pendingResetChecklistId);
   const pageCount = Math.min(activeChecklists.length, 5);
   const goToChecklist = (index: number) => {
     setActiveChecklistIndex(Math.max(0, Math.min(index, activeChecklists.length - 1)));
@@ -107,6 +109,12 @@ export function HomeScreen({ checklists, history, progress, toggleItem, resetChe
     if (!wasComplete && willComplete) showCelebration(checklist.title);
   };
 
+  const confirmResetChecklist = () => {
+    if (!pendingResetChecklistId) return;
+    resetChecklist(pendingResetChecklistId);
+    setPendingResetChecklistId(undefined);
+  };
+
   return (
     <>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -145,7 +153,7 @@ export function HomeScreen({ checklists, history, progress, toggleItem, resetChe
             <ChecklistCard
               checklist={activeChecklist}
               onToggleItem={handleToggleItem}
-              onResetChecklist={resetChecklist}
+              onResetChecklist={setPendingResetChecklistId}
               showHeader={false}
               showSummary
             />
@@ -205,6 +213,39 @@ export function HomeScreen({ checklists, history, progress, toggleItem, resetChe
             <Pressable accessibilityRole="button" onPress={() => setIsCelebrating(false)} style={styles.celebrationButton}>
               <Text style={styles.celebrationButtonText}>Tuyệt</Text>
             </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={Boolean(pendingResetChecklistId)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPendingResetChecklistId(undefined)}
+      >
+        <View style={styles.confirmBackdrop}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmEyebrow}>Xác nhận</Text>
+            <Text style={styles.confirmTitle}>Làm lại hôm nay?</Text>
+            <Text style={styles.confirmText}>
+              Toàn bộ việc đã hoàn thành trong {pendingResetChecklist?.title ?? 'thử thách này'} sẽ được bỏ check.
+            </Text>
+            <View style={styles.confirmActions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setPendingResetChecklistId(undefined)}
+                style={[styles.confirmButton, styles.confirmCancelButton]}
+              >
+                <Text style={styles.confirmCancelText}>Huỷ</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={confirmResetChecklist}
+                style={[styles.confirmButton, styles.confirmPrimaryButton]}
+              >
+                <Text style={styles.confirmPrimaryText}>Làm lại</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -366,6 +407,74 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   celebrationButtonText: {
+    color: colors.surface,
+    fontSize: 15,
+    fontFamily: typography.semiBold,
+  },
+  confirmBackdrop: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.28)',
+  },
+  confirmCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    padding: 24,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 22 },
+    shadowOpacity: 0.16,
+    shadowRadius: 36,
+    elevation: 8,
+  },
+  confirmEyebrow: {
+    color: colors.forest,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: typography.semiBold,
+    textTransform: 'uppercase',
+  },
+  confirmTitle: {
+    color: colors.ink,
+    fontSize: 26,
+    lineHeight: 32,
+    fontFamily: typography.semiBold,
+    marginTop: 4,
+  },
+  confirmText: {
+    color: colors.muted,
+    fontSize: 15,
+    lineHeight: 21,
+    fontFamily: typography.medium,
+    marginTop: 10,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 22,
+  },
+  confirmButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmCancelButton: {
+    backgroundColor: colors.softSurface,
+  },
+  confirmPrimaryButton: {
+    backgroundColor: colors.ink,
+  },
+  confirmCancelText: {
+    color: colors.muted,
+    fontSize: 15,
+    fontFamily: typography.semiBold,
+  },
+  confirmPrimaryText: {
     color: colors.surface,
     fontSize: 15,
     fontFamily: typography.semiBold,
